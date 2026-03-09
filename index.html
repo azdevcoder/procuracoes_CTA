@@ -17,13 +17,16 @@
         .table thead th { background: #f8fafc; color: #64748b; font-size: 0.72rem; text-transform: uppercase; cursor: pointer; white-space: nowrap; border-bottom: 2px solid #e2e8f0; }
         .badge-status { padding: 0.5em 1em; border-radius: 6px; font-weight: 600; font-size: 0.7rem; display: inline-block; width: 130px; text-align: center; }
         
-        /* Ajustes de Cores Solicitados */
+        /* Cores de Status */
         .status-ativa { background: #dcfce7; color: #166534; }
         .status-vence-hoje { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
-        .status-vence-prox { background: #0ea5e9; color: white; } /* Azul vibrante para destaque */
+        .status-vencimento-próximo { background: #0ea5e9; color: white; }
         .status-expirada { background: #fee2e2; color: #991b1b; }
         .status-cancelada { background: #f1f5f9; color: #475569; }
         
+        .dropdown-menu { font-size: 0.85rem; min-width: 200px; }
+        .form-check-input:checked { background-color: #107c41; border-color: #107c41; }
+
         footer { background: white; padding: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.8rem; }
     </style>
 </head>
@@ -78,15 +81,17 @@
                         <th><input type="text" class="form-control form-control-sm" placeholder="Buscar Empresa..." onkeyup="multiFiltro()"></th>
                         <th><input type="text" class="form-control form-control-sm" placeholder="Buscar CNPJ..." onkeyup="multiFiltro()"></th>
                         <th><input type="text" class="form-control form-control-sm" placeholder="Data..." onkeyup="multiFiltro()"></th>
-                        <th>
-                            <select id="filtro-status-select" class="form-select form-select-sm" onchange="multiFiltro()">
-                                <option value="">Todos</option>
-                                <option value="Ativa">Ativa</option>
-                                <option value="Vence Hoje">Vence Hoje</option>
-                                <option value="Vencimento Próximo">Vencimento Próximo</option>
-                                <option value="Expirada">Expirada</option>
-                                <option value="Cancelada">Cancelada</option>
-                            </select>
+                        <th class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.75rem;">
+                                Filtrar Situação
+                            </button>
+                            <ul class="dropdown-menu p-3">
+                                <li><label class="form-check-label"><input type="checkbox" class="form-check-input check-status" value="Ativa" onchange="multiFiltro()"> Ativa</label></li>
+                                <li><label class="form-check-label"><input type="checkbox" class="form-check-input check-status" value="Vence Hoje" onchange="multiFiltro()"> Vence Hoje</label></li>
+                                <li><label class="form-check-label"><input type="checkbox" class="form-check-input check-status" value="Vencimento Próximo" onchange="multiFiltro()"> Próximo (5 dias)</label></li>
+                                <li><label class="form-check-label"><input type="checkbox" class="form-check-input check-status" value="Expirada" onchange="multiFiltro()"> Expirada</label></li>
+                                <li><label class="form-check-label"><input type="checkbox" class="form-check-input check-status" value="Cancelada" onchange="multiFiltro()"> Cancelada</label></li>
+                            </ul>
                         </th>
                         <th><input type="text" class="form-control form-control-sm" placeholder="Buscar Parceiro..." onkeyup="multiFiltro()"></th>
                         <th></th>
@@ -140,8 +145,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Dados injetados do arquivo Excel
-    let dados = [
+       let dados = [
     { certificado: "SOCIEDADE", empresa: "SANTA CASA DE MISERICORDIA DE ITABUNA", cnpj: "14.349.740/0001-42", validade: "2024-12-20", situacao: "Expirada", parceiro: "-" },
     { certificado: "SOCIEDADE", empresa: "SANTA CASA DE MISERICORDIA DE ITABUNA", cnpj: "14.349.740/0001-42", validade: "2025-01-31", situacao: "Expirada", parceiro: "-" },
     { certificado: "SOCIEDADE", empresa: "SANTE 13 RESTAURANTE E BAR LTDA", cnpj: "15.200.106/0001-06", validade: "2025-03-03", situacao: "Expirada", parceiro: "-" },
@@ -418,45 +422,15 @@
     function calcularSituacao(dataVal, sitManual) {
         if (sitManual === "Cancelada") return "Cancelada";
         if (!dataVal) return "-";
-        
         const partes = dataVal.split('-');
         const dVal = new Date(partes[0], partes[1] - 1, partes[2]);
         dVal.setHours(0,0,0,0);
-
         const diffTime = dVal.getTime() - HOJE.getTime();
         const diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
         if (diffDias < 0) return "Expirada";
         if (diffDias === 0) return "Vence Hoje";
         if (diffDias <= 5) return "Vencimento Próximo";
         return "Ativa";
-    }
-
-    function processarExcel(input) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-            const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-
-            const novosDados = raw.map(row => ({
-                certificado: row.Certificado || row.CERTIFICADO || "SOCIEDADE",
-                empresa: row.Empresa || row.EMPRESA || "Não informado",
-                cnpj: row.Cnpj || row.CNPJ || "-",
-                validade: formatarDataExcel(row.Validade || row.VALIDADE),
-                situacao: row.Situacao || row.SITUAÇÃO || "Auto",
-                parceiro: row.Parceiro || row.PARCEIRO || "-"
-            }));
-            dados = [...dados, ...novosDados];
-            renderizar();
-            alert("Novos registros adicionados!");
-        };
-        reader.readAsArrayBuffer(input.files[0]);
-    }
-
-    function formatarDataExcel(val) {
-        if (!val) return "";
-        if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000).toISOString().split('T')[0];
-        return val;
     }
 
     function renderizar() {
@@ -483,17 +457,32 @@
 
     function multiFiltro() {
         const rows = document.querySelectorAll("#table-body tr");
-        const inputs = document.querySelectorAll(".filter-row input, .filter-row select");
+        const inputs = document.querySelectorAll(".filter-row input, .filter-row select:not(.check-status)");
+        const statusSelecionados = Array.from(document.querySelectorAll(".check-status:checked")).map(cb => cb.value.toLowerCase());
+
         let stats = { total: 0, ativa: 0, hoje: 0, prox: 0, expirada: 0 };
 
         rows.forEach(row => {
             let match = true;
-            inputs.forEach((input, i) => {
-                let val = input.value.toLowerCase();
-                let cell = row.cells[i].innerText.toLowerCase();
-                if (val && !cell.includes(val)) match = false;
+
+            // Filtros de texto e select comum
+            inputs.forEach((input) => {
+                let colIndex = input.closest('th').cellIndex;
+                if (colIndex !== 4) { // Pula a coluna de situação que tratamos abaixo
+                    let val = input.value.toLowerCase();
+                    let cell = row.cells[colIndex].innerText.toLowerCase();
+                    if (val && !cell.includes(val)) match = false;
+                }
             });
+
+            // Filtro de Múltiplas Situações (Checkbox)
+            if (statusSelecionados.length > 0) {
+                let cellStatus = row.cells[4].innerText.toLowerCase();
+                if (!statusSelecionados.includes(cellStatus)) match = false;
+            }
+
             row.style.display = match ? "" : "none";
+
             if (match) {
                 stats.total++;
                 const s = row.cells[4].innerText;
@@ -503,6 +492,7 @@
                 else if (s === "Expirada") stats.expirada++;
             }
         });
+
         document.getElementById('val-total').innerText = stats.total;
         document.getElementById('val-ativa').innerText = stats.ativa;
         document.getElementById('val-hoje').innerText = stats.hoje;
@@ -511,8 +501,37 @@
     }
 
     function filtrarPorCard(status) {
-        document.getElementById('filtro-status-select').value = status;
+        document.querySelectorAll(".check-status").forEach(cb => cb.checked = false);
+        if (status) {
+            const cb = Array.from(document.querySelectorAll(".check-status")).find(c => c.value === status);
+            if (cb) cb.checked = true;
+        }
         multiFiltro();
+    }
+
+    function processarExcel(input) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            const novosDados = raw.map(row => ({
+                certificado: row.Certificado || row.CERTIFICADO || "SOCIEDADE",
+                empresa: row.Empresa || row.EMPRESA || "Não informado",
+                cnpj: row.Cnpj || row.CNPJ || "-",
+                validade: formatarDataExcel(row.Validade || row.VALIDADE),
+                situacao: row.Situacao || row.SITUAÇÃO || "Auto",
+                parceiro: row.Parceiro || row.PARCEIRO || "-"
+            }));
+            dados = [...dados, ...novosDados];
+            renderizar();
+        };
+        reader.readAsArrayBuffer(input.files[0]);
+    }
+
+    function formatarDataExcel(val) {
+        if (!val) return "";
+        if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000).toISOString().split('T')[0];
+        return val;
     }
 
     function ordenar(col) {
@@ -532,7 +551,6 @@
         editIdx = idx;
         const modalEl = document.getElementById('modalForm');
         const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-        
         if (idx > -1) {
             const d = dados[idx];
             document.getElementById('m-cert').value = d.certificado;
@@ -557,22 +575,10 @@
             situacao: document.getElementById('m-sit-manual').value,
             parceiro: document.getElementById('m-parceiro').value
         };
-
-        if(!d.empresa || !d.validade) {
-            alert("Preencha os campos obrigatórios!");
-            return;
-        }
-
-        if (editIdx > -1) {
-            dados[editIdx] = d;
-        } else {
-            dados.push(d);
-        }
-
-        const modalEl = document.getElementById('modalForm');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (modalInstance) modalInstance.hide();
-        
+        if(!d.empresa || !d.validade) { alert("Preencha os campos obrigatórios!"); return; }
+        if (editIdx > -1) dados[editIdx] = d;
+        else dados.push(d);
+        bootstrap.Modal.getInstance(document.getElementById('modalForm')).hide();
         renderizar();
     }
 </script>
