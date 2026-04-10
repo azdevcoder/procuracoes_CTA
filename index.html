@@ -5,7 +5,423 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Procurações | CTA</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet"><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Procurações - Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        body { 
+            background-color: #f0f2f5; 
+            font-family: 'Inter', sans-serif;
+            color: #334155;
+        }
+
+        /* Header Estilo Excel/Moderno */
+        .navbar-custom {
+            background: #ffffff;
+            border-bottom: 3px solid #107c41;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        /* Cards de Estatísticas */
+        .stat-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+
+        /* Tabela e Filtros */
+        .main-container {
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        .table thead th {
+            background-color: #f8fafc;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .filter-row input, .filter-row select {
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            padding: 5px 10px;
+        }
+
+        /* Status Badges Modernas */
+        .badge-custom {
+            padding: 0.5em 1em;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        .bg-ativa { background-color: #dcfce7; color: #166534; }
+        .bg-expirada { background-color: #fee2e2; color: #991b1b; }
+        .bg-cancelada { background-color: #fef9c3; color: #854d0e; }
+
+        .table-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .btn-excel {
+            background-color: #107c41;
+            color: white;
+        }
+        .btn-excel:hover { background-color: #0a5c31; color: white; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-custom mb-4 py-3">
+    <div class="container-fluid px-4">
+        <div>
+            <span class="navbar-brand mb-0 h1 fw-bold text-success">GESTOR DE PROCURAÇÕES</span>
+            <div class="text-muted small">Referência: 06/03/2026 | CNPJ: 55.566.227/0001-90</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-excel d-flex align-items-center gap-2 shadow-sm" onclick="exportarExcel()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Exportar Excel
+            </button>
+            <button class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onclick="abrirModal()">
+                <span>+</span> Novo Registro
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid px-4">
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card p-3 border-start border-4 border-primary">
+                <div class="text-muted small fw-bold">TOTAL REGISTOS</div>
+                <div class="h3 fw-bold mb-0" id="stat-total">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card p-3 border-start border-4 border-success">
+                <div class="text-success small fw-bold">ATIVAS</div>
+                <div class="h3 fw-bold mb-0" id="stat-ativas">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card p-3 border-start border-4 border-danger">
+                <div class="text-danger small fw-bold">EXPIRADAS</div>
+                <div class="h3 fw-bold mb-0" id="stat-expiradas">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card p-3 border-start border-4 border-warning">
+                <div class="text-warning small fw-bold">CANCELADAS</div>
+                <div class="h3 fw-bold mb-0" id="stat-canceladas">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="tabelaProcuracoes">
+                <thead>
+                    <tr>
+                        <th width="40%">Empresa</th>
+                        <th width="20%">CNPJ</th>
+                        <th width="15%">Validade</th>
+                        <th width="15%">Situação</th>
+                        <th width="10%" class="text-center">Ações</th>
+                    </tr>
+                    <tr class="filter-row">
+                        <th><input type="text" class="form-control" placeholder="Filtrar empresa..." onkeyup="multiFiltro(0, this.value)"></th>
+                        <th><input type="text" class="form-control" placeholder="Filtrar CNPJ..." onkeyup="multiFiltro(1, this.value)"></th>
+                        <th><input type="text" class="form-control" placeholder="Filtrar data..." onkeyup="multiFiltro(2, this.value)"></th>
+                        <th>
+                            <select class="form-select" onchange="multiFiltro(3, this.value)">
+                                <option value="">Todos</option>
+                                <option value="Ativa">Ativa</option>
+                                <option value="Expirada">Expirada</option>
+                                <option value="Cancelada">Cancelada</option>
+                            </select>
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="registroModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">Lançar Procuração</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="procuracaoForm">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">NOME DA EMPRESA</label>
+                        <input type="text" id="in-empresa" class="form-control form-control-lg" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">CNPJ</label>
+                        <input type="text" id="in-cnpj" class="form-control" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">VALIDADE</label>
+                            <input type="date" id="in-validade" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">STATUS MANUAL</label>
+                            <select id="in-situacao" class="form-select">
+                                <option value="Auto">Automático</option>
+                                <option value="Cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-success px-4" onclick="salvar()">Salvar Dados</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    const HOJE = new Date("2026-03-06");
+    let editIndex = -1;
+    let bModal;
+
+   // LISTA DE DADOS COMPLETA
+        let dados = [
+           { certificado: "G5", empresa: "ABATEDOURO E FRIGORIFICO FRIBOTH LTDA", cnpj: "11.882.056/0001-33", validade: "2026-06-06", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "AGRO OIL LTDA", cnpj: "23.446.675/0001-64", validade: "2026-06-30", situacao: "Auto", parceiro: "-" },
+    { certificado: "RECUPERA", empresa: "AGROCEREAIS VAN RIEL LTDA", cnpj: "27.253.720/0001-15", validade: "2031-03-18", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "G5", empresa: "AGROPECUARIA BOLSON LTDA EM RECUPERACAO JUDICIAL", cnpj: "03.125.991/0001-27", validade: "2026-05-12", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "ALB INCORPORADORA E ADMINISTRADORA DE BENS PROPRIOS LTDA", cnpj: "21.169.348/0001-87", validade: "2026-06-30", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "ALBAR FERTILIZANTES LTDA", cnpj: "42.794.232/0001-09", validade: "2026-05-13", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "ARAGUAIA COMMOTIDES AGRICOLAS LTDA", cnpj: "21.600.747/0001-50", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "ALENCAR", empresa: "ARFOO SOLUCOES INDUSTRIAIS LTDA", cnpj: "26.248.352/0001-54", validade: "2026-04-30", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "G5", empresa: "ARNOLD COMERCIO E REPRESENTACAO LTDA EM RECUPERACAO JUDICIAL", cnpj: "09.382.853/0001-00", validade: "2026-05-26", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "B W D E CIA LTDA", cnpj: "52.934.336/0001-25", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "BC ZANIN LTDA", cnpj: "31.628.252/0001-93", validade: "2026-08-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "RECUPERA", empresa: "BRISA TRANSPORTES LTDA", cnpj: "94.107.919/0001-22", validade: "2026-11-14", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "ICONTAZ", empresa: "C. L. ANGELO ALIMENTOS", cnpj: "27.219.782/0001-00", validade: "2026-06-30", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "CASA DE CARNES VITOR LTDA", cnpj: "25.952.953/0001-80", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "ICONTAZ", empresa: "COMERCIAL DE ALIMENTOS HACK LTDA", cnpj: "97.553.185/0001-01", validade: "2026-05-04", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "COMERCIO DE ALIMENTOS MELO LTDA", cnpj: "20.329.724/0001-90", validade: "2030-11-11", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "CONEXCOFFEE LTDA", cnpj: "60.246.938/0001-18", validade: "2031-01-22", situacao: "Auto", parceiro: "MARCELO" },
+    { certificado: "PARTIDAS", empresa: "CONTABILIDADE ATUALIZADA LTDA", cnpj: "00.818.102/0001-19", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ALLTUS ADM", empresa: "CRISTALINA UNIAO BIOMASSA SPE LTDA", cnpj: "50.561.771/0001-26", validade: "2026-10-14", situacao: "Auto", parceiro: "EDGAR" },
+    { certificado: "ICONTAZ", empresa: "DALFERTIL COMERCIO E REPRESENTACOES DE INS AGRIC LTDA", cnpj: "76.530.666/0001-13", validade: "2026-09-05", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "DELCAM ALIMENTOS LTDA.", cnpj: "17.266.951/0001-00", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "DISTRIBUIDORA DE CARNES SAO CAETANO LTDA", cnpj: "04.477.421/0001-69", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "DISTRIBUIDORA DE CARNES VICTOR GALVAO LTDA", cnpj: "02.598.111/0001-77", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "ECD COMERCIO E REPRESENTACAO COMERCIAL", cnpj: "08.018.510/0001-06", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "EDEGAR TRES LTDA EM RECUPERACAO JUDICIAL", cnpj: "81.425.548/0001-85", validade: "2027-01-08", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ALLTUS ADM", empresa: "ENERGIA CRISTALINA FLORESTAL LTDA", cnpj: "28.116.544/0001-32", validade: "2026-10-14", situacao: "Auto", parceiro: "EDGAR" },
+    { certificado: "PARTIDAS", empresa: "EVACLAR ALIMENTOS SOCIEDADE UNIPESSOAL LTDA", cnpj: "29.709.073/0001-39", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "FABRICIO ROCHA XAVIER", cnpj: "703.411.016-64", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "RECUPERA", empresa: "FALABRETTE SUPERMERCADOS LTDA", cnpj: "91.232.843/0001-79", validade: "2029-11-13", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "ICONTAZ", empresa: "FAMILIA LUZ COMERCIO DE CARNES LTDA", cnpj: "18.701.719/0001-15", validade: "2030-01-22", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "FLAVIANE EMPREENDIMENTOS IMOBILIARIOS LTDA", cnpj: "10.811.400/0001-30", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "FRATELLI INCORPORADORA DE IMOVEIS S/A EM RECUPERACAO JUDICIAL", cnpj: "10.545.897/0001-92", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "FRIGONATI LTDA", cnpj: "49.595.686/0001-08", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "FRIGORIFICO DO VALE LTDA", cnpj: "35.638.833/0001-67", validade: "2027-02-01", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "FRIGORIFICO MILLENIUM INDUSTRIA E COMERCIO LTDA", cnpj: "03.910.351/0001-28", validade: "2028-01-28", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "FRIGORIFICO SANTA BARBARA LTDA EM RECUPERACAO JUDICIAL", cnpj: "06.175.831/0001-80", validade: "2027-01-08", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "FRIGOVITOR LTDA", cnpj: "01.351.052/0001-75", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "FRX EMPREENDIMENTOS E PARTICIPACOES LTDA", cnpj: "51.357.667/0001-87", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ALENCAR", empresa: "GAMA ALIMENTOS LTDA", cnpj: "27.776.993/0001-44", validade: "2026-03-31", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "G5", empresa: "GIOVANI ARNOLD ALMEIDA EM RECUPERACAO JUDICIAL", cnpj: "07.557.806/0001-24", validade: "2026-05-26", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "G5", empresa: "GM ASSESSORIA EXECUTIVA LTDA", cnpj: "57.073.026/0001-87", validade: "2030-02-25", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "GP AGRICOLA LTDA", cnpj: "14.301.194/0001-70", validade: "2027-01-07", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "GR AGRICOLA LTDA", cnpj: "24.916.571/0001-39", validade: "2027-01-06", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "GRAO FORTE COMERCIO DE CAFE LTDA", cnpj: "30.649.185/0001-20", validade: "2031-02-06", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "GRAO NOBRE LTDA", cnpj: "32.475.121/0001-86", validade: "2031-03-03", situacao: "Auto", parceiro: "MARCELO BARCELOS" },
+    { certificado: "ALENCAR", empresa: "H. CALIL COMERCIAL LTDA", cnpj: "20.428.743/0001-74", validade: "2026-06-19", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "ALLTUS ADM", empresa: "HBJ BIOMASSA LTDA", cnpj: "23.361.490/0001-57", validade: "2027-10-10", situacao: "Auto", parceiro: "EDGAR" },
+    { certificado: "ALENCAR", empresa: "IDEIA LOG - TRANSPORTE RODOVIARIO DE CARGAS EM GERAL LTDA.", cnpj: "21.674.595/0001-30", validade: "2027-01-31", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "SOCIEDADE", empresa: "INDUSTRIA DE LATICINIO E DERIVADOS LACTEOS DO AGRESTE MERIDIONAL LTDA", cnpj: "42.059.615/0001-33", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "SOCIEDADE", empresa: "INOVACOES TECNOLOGICAS LTDA", cnpj: "38.320.944/0001-19", validade: "2027-03-19", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "G5", empresa: "ITAMARATY AGRONEGOCIOS LTDA", cnpj: "20.917.839/0001-04", validade: "2027-03-10", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "SOCIEDADE", empresa: "JPAGRO COMERCIO DE CEREAIS LTDA", cnpj: "18.780.378/0001-10", validade: "2026-07-29", situacao: "Auto", parceiro: "-" },
+    { certificado: "ICONTAZ", empresa: "KLEIN & CIA LTDA", cnpj: "17.530.579/0001-05", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "KRAEMER & KRAEMER LTDA", cnpj: "75.133.611/0001-07", validade: "2027-01-08", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "L & F COMERCIO E INDUSTRIA DE MOVEIS LTDA", cnpj: "78.555.703/0001-73", validade: "2027-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "L.A.DALL ACQUA & CIA LTDA", cnpj: "82.311.580/0001-00", validade: "2027-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "LEGITIMO CASA DE CARNES LTDA", cnpj: "39.410.613/0001-32", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "M S MARIUSSI LTDA.", cnpj: "68.826.536/0001-02", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "SOCIEDADE", empresa: "MARIO SERGIO ROSSI", cnpj: "070.996.648-24", validade: "2026-06-15", situacao: "Auto", parceiro: "-" },
+    { certificado: "ICONTAZ", empresa: "MARLON BONILHA LTDA", cnpj: "04.200.198/0001-08", validade: "2026-06-30", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "MERCADOMOVEIS LTDA", cnpj: "77.500.049/0001-38", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "MOLTEC MOLAS DE PRECISAO LTDA", cnpj: "77.627.610/0001-44", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ALENCAR", empresa: "MOTIVA CENTRAL DE ATENDIMENTO TELEFONICO & CONSULTORIA EM TELEVENDAS LTDA", cnpj: "07.759.538/0001-23", validade: "2027-02-09", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "SOCIEDADE", empresa: "MULT BEEF COMERCIAL LTDA", cnpj: "02.886.959/0001-00", validade: "2026-12-31", situacao: "Auto", parceiro: "MARCELO" },
+    { certificado: "G5", empresa: "NOVA CIAFERTIL PRODUTOS AGRICOLAS LTDA", cnpj: "48.925.202/0001-70", validade: "2027-04-30", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "G5", empresa: "NUTRILARA SUPLEMENTOS E RACAO ANIMAL LTDA", cnpj: "33.918.120/0001-21", validade: "2027-06-30", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "SOCIEDADE", empresa: "PALOMAR CARNES LTDA", cnpj: "35.425.378/0001-11", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO" },
+    { certificado: "SOCIEDADE", empresa: "PEGASO COMERCIO E SERVICOS LTDA", cnpj: "02.378.325/0001-38", validade: "2026-12-31", situacao: "Auto", parceiro: "ZANELATO" },
+    { certificado: "PARTIDAS", empresa: "PERIGOLO PRATA TRADING COFFEE - LTDA", cnpj: "14.990.842/0001-42", validade: "2031-03-03", situacao: "Auto", parceiro: "-" },
+    { certificado: "G5", empresa: "PLANTA VERDE COMERCIO, REPRESENTACAO & ALUGUEL DE MAQUINAS E EQUIPAMENTOS LTDA", cnpj: "16.754.944/0001-94", validade: "2026-05-12", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "SOCIEDADE", empresa: "PROCFIT CONTABILIDADE LTDA", cnpj: "22.090.466/0001-68", validade: "2027-02-18", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "SOCIEDADE", empresa: "PROCFIT GESTAO ORIENTADA A PROCESSOS LTDA", cnpj: "09.067.820/0001-75", validade: "2026-08-19", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "SOCIEDADE", empresa: "RIOLAX FRANCHISING LTDA", cnpj: "16.954.655/0001-39", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "PARTIDAS", empresa: "ROCHA XAVIER ALIMENTOS LTDA", cnpj: "40.679.254/0001-00", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "S J CAFE LTDA", cnpj: "37.697.736/0001-70", validade: "2030-12-22", situacao: "Auto", parceiro: "MARCELO" },
+    { certificado: "PARTIDAS", empresa: "SARAH ALIMENTOS LTDA", cnpj: "34.505.700/0001-50", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2030-10-31", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "SERGIO CARLOS SILVA DOS ANJOS LTDA", cnpj: "12.163.380/0001-64", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "RECUPERA", empresa: "SERRA AMBIENTAL LTDA", cnpj: "00.103.780/0001-03", validade: "2026-10-15", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "G5", empresa: "SMAGRO COMERCIO E REPRESENTACOES LTDA", cnpj: "45.028.831/0001-00", validade: "2026-05-12", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "SOLO FERTIL AGRONEGOCIOS LTDA", cnpj: "43.422.838/0001-86", validade: "2026-12-31", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "SUPERMERCADO BRAVIM LTDA", cnpj: "35.999.150/0001-35", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "SUPERMERCADO IRMAOS LOURENCO M K M LTDA", cnpj: "04.715.840/0001-91", validade: "2031-03-09", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "SUPERMERCADO LINK LTDA", cnpj: "01.946.439/0001-74", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "TELSITE TELECOMUNICACOES LTDA", cnpj: "07.016.672/0001-34", validade: "2027-03-31", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "PARTIDAS", empresa: "TERRA DO SOL AGRICOLA LTDA", cnpj: "10.895.511/0001-72", validade: "2026-05-26", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "UNIGRAOS AGROINDUSTRIAL LTDA", cnpj: "13.480.974/0001-61", validade: "2027-02-12", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "UNIGRAOS TRANSPORTES LTDA", cnpj: "17.706.285/0001-83", validade: "2027-02-12", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "VEX IMPORTACAO E DISTRIBUICAO LTDA", cnpj: "28.306.241/0001-82", validade: "2026-06-30", situacao: "Auto", parceiro: "-" },
+    { certificado: "SOCIEDADE", empresa: "VILA ROSA RISTORANTE E ROTISSERIE LTDA", cnpj: "49.400.362/0001-69", validade: "2026-08-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "ALENCAR", empresa: "VR2 TRANSPORTES LTDA", cnpj: "26.146.593/0001-92", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "SOCIEDADE", empresa: "WELLDONE ASSISTENCIA LABORATORIAL LTDA", cnpj: "12.184.559/0001-06", validade: "2026-09-23", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "PARTIDAS", empresa: "XAVIER CARNES SOCIEDADE UNIPESSOAL LTDA", cnpj: "01.536.881/0001-22", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "SOCIEDADE", empresa: "XAVIER NEGOCIOS E EMPREENDIMENTOS LTDA", cnpj: "50.219.118/0001-83", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO" },
+    { certificado: "PARTIDAS", empresa: "XAVIER NEGOCIOS E EMPREENDIMENTOS LTDA", cnpj: "50.219.118/0001-83", validade: "2027-01-28", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "ZANIN & CIA LTDA", cnpj: "43.640.705/0001-86", validade: "2026-08-31", situacao: "Auto", parceiro: "MARCELO" }
+        ];
+    function calcStatus(dataVal, sitMan) {
+        if (sitMan === "Cancelada") return "Cancelada";
+        return new Date(dataVal) < HOJE ? "Expirada" : "Ativa";
+    }
+
+    // --- FILTRO AVANÇADO POR COLUNA ---
+    function multiFiltro() {
+        const rows = document.querySelectorAll("#table-body tr");
+        const inputs = document.querySelectorAll(".filter-row input, .filter-row select");
+
+        rows.forEach(row => {
+            let matches = true;
+            inputs.forEach((input, index) => {
+                const val = input.value.toLowerCase();
+                const cellVal = row.cells[index].innerText.toLowerCase();
+                if (val && !cellVal.includes(val)) matches = false;
+            });
+            row.style.display = matches ? "" : "none";
+        });
+        atualizarStats();
+    }
+
+    function atualizarStats() {
+        const stats = { total: 0, ativas: 0, expiradas: 0, canceladas: 0 };
+        const rows = document.querySelectorAll("#table-body tr");
+        
+        rows.forEach(row => {
+            if (row.style.display !== "none") {
+                stats.total++;
+                const status = row.cells[3].innerText;
+                if (status === "Ativa") stats.ativas++;
+                else if (status === "Expirada") stats.expiradas++;
+                else if (status === "Cancelada") stats.canceladas++;
+            }
+        });
+
+        document.getElementById('stat-total').innerText = stats.total;
+        document.getElementById('stat-ativas').innerText = stats.ativas;
+        document.getElementById('stat-expiradas').innerText = stats.expiradas;
+        document.getElementById('stat-canceladas').innerText = stats.canceladas;
+    }
+
+    function renderizar() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        
+        dados.sort((a,b) => a.empresa.localeCompare(b.empresa));
+
+        dados.forEach((d, i) => {
+            const status = calcStatus(d.validade, d.situacao);
+            const dataBR = d.validade.split('-').reverse().join('/');
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold">${d.empresa}</td>
+                    <td class="text-muted small">${d.cnpj}</td>
+                    <td>${dataBR}</td>
+                    <td><span class="badge-custom bg-${status.toLowerCase()}">${status}</span></td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-light border" onclick="abrirModal(${i})">Editar</button>
+                    </td>
+                </tr>
+            `;
+        });
+        atualizarStats();
+    }
+
+    function abrirModal(idx = -1) {
+        editIndex = idx;
+        bModal = new bootstrap.Modal(document.getElementById('registroModal'));
+        if(idx > -1) {
+            const d = dados[idx];
+            document.getElementById('in-empresa').value = d.empresa;
+            document.getElementById('in-cnpj').value = d.cnpj;
+            document.getElementById('in-validade').value = d.validade;
+            document.getElementById('in-situacao').value = d.situacao;
+        } else {
+            document.getElementById('procuracaoForm').reset();
+            document.getElementById('in-situacao').value = 'Auto';
+        }
+        bModal.show();
+    }
+
+    function salvar() {
+        const d = {
+            empresa: document.getElementById('in-empresa').value,
+            cnpj: document.getElementById('in-cnpj').value,
+            validade: document.getElementById('in-validade').value,
+            situacao: document.getElementById('in-situacao').value
+        };
+        if(editIndex > -1) dados[editIndex] = d;
+        else dados.push(d);
+        bModal.hide();
+        renderizar();
+    }
+
+    function exportarExcel() {
+        const ws = XLSX.utils.json_to_sheet(dados.map(d => ({
+            EMPRESA: d.empresa, CNPJ: d.cnpj, VALIDADE: d.validade, SITUACAO: calcStatus(d.validade, d.situacao)
+        })));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Dados");
+        XLSX.writeFile(wb, "Relatorio_Procuracoes.xlsx");
+    }
+
+    window.onload = renderizar;
+</script>
+</body>
+</html>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="icon" type="image/x-icon" href="logo_CTA.ico">
     
@@ -154,269 +570,105 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-       let dados = [
-    { certificado: "SOCIEDADE", empresa: "SANTA CASA DE MISERICORDIA DE ITABUNA", cnpj: "14.349.740/0001-42", validade: "2024-12-20", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "SANTA CASA DE MISERICORDIA DE ITABUNA", cnpj: "14.349.740/0001-42", validade: "2025-01-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "SANTE 13 RESTAURANTE E BAR LTDA", cnpj: "15.200.106/0001-06", validade: "2025-03-03", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PEDIATRICS HOME CARE - INTERNACAO MEDICA", cnpj: "10.211.939/0001-59", validade: "2025-05-02", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "FORZA GESTORA S.A", cnpj: "22.881.532/0001-18", validade: "2025-06-20", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "AVIDA CONSTRUTORA E INCORPORADORA S/A", cnpj: "09.001.183/0001-34", validade: "2025-07-05", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "REI SEGURANCA PATRIMONIAL LTDA", cnpj: "22.102.789/0001-24", validade: "2025-07-15", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MARCONI INDUSTRIAL FOODS LTDA EM RECUPERACAO", cnpj: "37.862.806/0001-07", validade: "2025-07-18", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MARCONI INDUSTRIAL FOODS LTDA EM RECUPERACAO JUDICIAL", cnpj: "37.862.806/0001-07", validade: "2025-07-18", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "HYPER CASH PAY LTDA", cnpj: "56.027.066/0001-20", validade: "2025-07-20", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "USINAS REUNIDAS SERESTA S/A - EM RECUPERACAO", cnpj: "12.265.245/0001-20", validade: "2025-07-24", situacao: "Expirada", parceiro: "SIDINEI" },
-    { certificado: "SOCIEDADE", empresa: "EMPORIO ALBERTO LTDA", cnpj: "74.269.804/0001-27", validade: "2025-07-29", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "EMPORIO SAO JOSE ITAPE LTDA", cnpj: "24.372.350/0002-28", validade: "2025-07-29", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "EMPORIO SAO JOSE ITAPE LTDA", cnpj: "24.372.350/0001-47", validade: "2025-07-29", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MARIA HELENA ALVES CIRINEO ALBERTO", cnpj: "35.850.193/0001-54", validade: "2025-07-29", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "JCPK OBRAS DE TERRAPLENAGEM E PORTUARIA LTDA", cnpj: "04.301.546/0001-33", validade: "2025-07-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "TAGUI BRASIL CEREAIS LTDA", cnpj: "23.499.753/0001-99", validade: "2025-07-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "UNIVIA TRANSPORTES S.A.", cnpj: "23.945.466/0001-65", validade: "2025-07-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "USINAS REUNIDAS SERESTA S/A - EM RECUPERACAO JUDICIAL", cnpj: "12.265.245/0001-20", validade: "2025-07-31", situacao: "Expirada", parceiro: "SIDINEI" },
-    { certificado: "SOCIEDADE", empresa: "VILA ROSA RISTORANTE E ROTISSERIE LTDA", cnpj: "49.400.362/0001-69", validade: "2025-08-19", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "GREEN ALCOOL INTERMEDIACOES E NEGOCIOS LTDA", cnpj: "06.114.098/0001-94", validade: "2025-08-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "WELLDONE ASSISTENCIA LABORATORIAL LTDA", cnpj: "12.184.559/0001-06", validade: "2025-09-19", situacao: "Expirada", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "CASA DE CARNES MEDINA LTDA", cnpj: "36.669.823/0001-51", validade: "2025-09-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "JOSE MARTINS DA SILVA", cnpj: "20.718.817/0001-07", validade: "2025-09-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CRIAR - PROJETOS, SISTEMAS E AUTOMACAO DIGITAL LTDA", cnpj: "10.586.948/0001-24", validade: "2025-10-03", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CRIAR PRESTADORA DE SERVICOS INTERNET LTDA", cnpj: "05.799.453/0001-43", validade: "2025-10-03", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "VITRALFER METALURGICA LTDA", cnpj: "05.588.662/0001-48", validade: "2025-10-24", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "AUTO POSTO CENTENARIO LTDA", cnpj: "02.984.331/0001-39", validade: "2025-10-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "XMETA MARKETING, COMERCIO E REPRESENTACAO LTDA", cnpj: "30.319.428/0001-62", validade: "2025-10-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "DISTRIBUIDORA DE CARNES SAO CAETANO LTDA", cnpj: "04.477.421/0001-69", validade: "2025-10-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "FRIGONATI LTDA", cnpj: "49.595.686/0001-08", validade: "2025-10-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MAN COMERCIAL DE VEICULOS LTDA", cnpj: "47.804.224/0001-10", validade: "2025-10-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "QUALYES ALIMENTOS LTDA", cnpj: "09.310.031/0001-13", validade: "2025-10-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "J. P. CONSTRUCOES E SERVICOS LTDA", cnpj: "19.735.368/0001-26", validade: "2025-11-01", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "GEORGE PIRES MARTINS", cnpj: "061.863.844-03", validade: "2025-12-25", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "INDUSTRIA DE LATICINIO E DERIVADOS LACTEOS", cnpj: "42.059.615/0001-33", validade: "2025-12-25", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "A. B. LESSA NETO & CIA LTDA", cnpj: "05.562.589/0001-35", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "ALTO DA MOGIANA OPERACOES LOGISTICAS LTDA", cnpj: "43.066.386/0001-47", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "BELLA COMERCIO INDUSTRIA IMPORTACAO & EXPORTACAO LTDA", cnpj: "13.044.968/0001-61", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "BMG AGRICOLA LTDA", cnpj: "45.231.325/0001-13", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CRIAR - PROJETOS, SISTEMAS E AUTOMACAO DIGITAL LTDA", cnpj: "10.586.948/0001-24", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CRIAR PRESTADORA DE SERVICOS INTERNET LTDA", cnpj: "05.799.453/0001-43", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "FRIGORIFICO VILA BELA LTDA", cnpj: "24.593.984/0001-20", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "FRIGOVITOR LTDA", cnpj: "01.351.052/0001-75", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "ICONE DA MODA LTDA", cnpj: "19.729.405/0001-93", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "LEGITIMO CASA DE CARNES LTDA", cnpj: "39.410.613/0001-32", validade: "2025-12-31", situacao: "Expirada", parceiro: "PAULO" },
-    { certificado: "SOCIEDADE", empresa: "LUC5 DIGITAL LTDA", cnpj: "21.838.109/0001-72", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "NUTRIBELO INDUSTRIA E COMERCIO DE SUBPRODUTOS ANIMAIS LTDA", cnpj: "17.205.597/0001-03", validade: "2025-12-31", situacao: "Expirada", parceiro: "EVELYNE" },
-    { certificado: "SOCIEDADE", empresa: "PAULO DE TARSO GONCALVES DE ARAUJO", cnpj: "609.909.458-04", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PEGASO COMERCIO E SERVICOS LTDA", cnpj: "02.378.325/0001-38", validade: "2025-12-31", situacao: "Expirada", parceiro: "ZANELATO" },
-    { certificado: "SOCIEDADE", empresa: "PERTUTTI TRANSPORTES LTDA", cnpj: "19.872.009/0001-10", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PHN ATENDIMENTO MEDICO LTDA", cnpj: "36.186.626/0001-81", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PPI ADMINISTRADORA DE BENS LTDA", cnpj: "06.973.017/0001-01", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "R & R ENGENHARIA LTDA", cnpj: "03.424.858/0001-71", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "RIFORMATO & ESTRUTURALLE CONSTRUTORA", cnpj: "04.219.714/0001-46", validade: "2025-12-31", situacao: "Expirada", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "SARAH ALIMENTOS LTDA", cnpj: "34.505.700/0001-50", validade: "2025-12-31", situacao: "Expirada", parceiro: "PAULO" },
-    { certificado: "SOCIEDADE", empresa: "TOTTUS CONSULTORIA & COMUNICACAO LTDA", cnpj: "11.952.445/0001-98", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "TRAUME OFFSHORE SOLUTIONS LTDA", cnpj: "22.816.984/0001-16", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "UNIAO CASINGS IMPORTACAO E EXPORTACAO LTDA", cnpj: "10.599.254/0001-21", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PARTIDAS CONSULTORIA EMPRESARIAL LTDA", cnpj: "49.217.927/0001-77", validade: "2026-01-06", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "DEMETRIUS NAPOLEAO NAPOLES E OUTRO", cnpj: "12.052.159/0001-39", validade: "2026-01-09", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CARGO HANDLING TRANSPORTES EXPRESS LTDA", cnpj: "27.375.207/0001-05", validade: "2026-03-02", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "VITORIA SORVETES LTDA", cnpj: "11.043.424/0001-50", validade: "2026-03-05", situacao: "Expirada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "LIV - COMERCIO ATACADISTA E VAREJISTA DE PRODUTOS", cnpj: "56.158.777/0001-33", validade: "2026-03-20", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "NOVE INVESTIMENTOS LTDA", cnpj: "20.536.198/0001-30", validade: "2026-03-24", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CRIAR - PROJETOS, SISTEMAS E AUTOMACAO DIGITAL LTDA", cnpj: "10.586.948/0001-24", validade: "2026-03-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "CRIAR PRESTADORA DE SERVICOS INTERNET LTDA", cnpj: "05.799.453/0001-43", validade: "2026-03-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "SARANDI TRATORES LTDA", cnpj: "77.266.575/0001-85", validade: "2026-04-01", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MULT BEEF COMERCIAL LTDA", cnpj: "02.886.959/0001-00", validade: "2026-04-15", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MULT BEEF COMERCIAL LTDA", cnpj: "02.886.959/0001-00", validade: "2026-05-22", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "EVEREST DISTRIBUIDORA DE COMBUSTIVEIS LTDA", cnpj: "10.383.235/0001-63", validade: "2026-06-04", situacao: "Vigente", parceiro: "SIDNEI" },
-    { certificado: "SOCIEDADE", empresa: "MARIO SERGIO ROSSI", cnpj: "070.996.648-24", validade: "2026-06-15", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "GOMES E GONTIJO LTDA", cnpj: "84.057.447/0001-97", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "CR7 CHAPAS REPRESENTACAO COMERCIAL LTDA", cnpj: "56.642.598/0001-77", validade: "2026-07-27", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "D H ESTEVES - COMERCIO DE CEREAIS E ACUCAR LTDA", cnpj: "31.632.569/0001-01", validade: "2026-07-29", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "JPAGRO COMERCIO DE CEREAIS LTDA", cnpj: "18.780.378/0001-10", validade: "2026-07-29", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PROCFIT GESTAO ORIENTADA A PROCESSOS LTDA", cnpj: "09.067.820/0001-75", validade: "2026-08-19", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "GALO DE BARCELOS PARTICIPACOES LTDA", cnpj: "45.373.621/0001-59", validade: "2026-08-22", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "VILA ROSA RISTORANTE E ROTISSERIE LTDA", cnpj: "49.400.362/0001-69", validade: "2026-08-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "WELLDONE ASSISTENCIA LABORATORIAL LTDA", cnpj: "12.184.559/0001-06", validade: "2026-09-23", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "AREMINAS SERVICOS E TRANSPORTES LTDA", cnpj: "06.054.727/0001-38", validade: "2026-12-01", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "RODRIGO LE*** JA****", cnpj: "023.987.506-04", validade: "2026-12-01", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "ACS CIENTIFICA QUIMICA FINA ESPECIALIZADA LTDA", cnpj: "13.767.262/0001-28", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "INDUSTRIA DE LATICINIO E DERIVADOS LACTEOS", cnpj: "42.059.615/0001-33", validade: "2026-12-31", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "MULT BEEF COMERCIAL LTDA", cnpj: "02.886.959/0001-00", validade: "2026-12-31", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "PALOMAR CARNES LTDA", cnpj: "35.425.378/0001-11", validade: "2026-12-31", situacao: "Vigente", parceiro: "PAULO" },
-    { certificado: "SOCIEDADE", empresa: "PEGASO COMERCIO E SERVICOS LTDA", cnpj: "02.378.325/0001-38", validade: "2026-12-31", situacao: "Vigente", parceiro: "ZANELATO" },
-    { certificado: "SOCIEDADE", empresa: "RIOLAX FRANCHISING LTDA", cnpj: "16.954.655/0001-39", validade: "2026-12-31", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "SUN ENERGY INDUSTRIA E COMERCIO", cnpj: "13.076.043/0001-00", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "XAVIER NEGOCIOS E EMPREENDIMENTOS LTDA", cnpj: "50.219.118/0001-83", validade: "2026-12-31", situacao: "Vigente", parceiro: "PAULO" },
-    { certificado: "SOCIEDADE", empresa: "PROCFIT CONTABILIDADE LTDA", cnpj: "22.090.466/0001-68", validade: "2027-02-18", situacao: "Vigente", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "GTA SEGURANCA PATRIMONIAL LTDA", cnpj: "12.637.331/0001-16", validade: "2027-09-02", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "GTA SERVICOS ADMINISTRATIVOS E MANUTENCAO", cnpj: "32.244.278/0001-09", validade: "2027-09-02", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "GTA TERCEIRIZACAO DE SERVICOS LTDA", cnpj: "11.224.492/0001-15", validade: "2027-09-02", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "FRIGORIFICO MILLENIUM INDUSTRIA E COMERCIO LTDA", cnpj: "03.910.351/0001-28", validade: "2028-01-28", situacao: "Vigente", parceiro: "PAULO" },
-    { certificado: "SOCIEDADE", empresa: "ANDARE CALCADOS LTDA", cnpj: "43.705.133/0001-76", validade: "2028-08-17", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "MANUTECNICA MANUTENCAO LTDA", cnpj: "03.758.809/0001-75", validade: "2028-12-31", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "SOCIEDADE", empresa: "ARCTICA SERVICOS EM TECNOLOGIA DE INFORMACAO LTDA", cnpj: "35.429.594/0001-35", validade: "2029-01-21", situacao: "Vigente", parceiro: "TONY" },
-    { certificado: "SOCIEDADE", empresa: "M. A. S. ENGENHARIA E CONSULTORIA LTDA", cnpj: "05.107.732/0001-07", validade: "2030-07-06", situacao: "Vigente", parceiro: "DR. PAULO BRUNETI" },
-    { certificado: "SOCIEDADE", empresa: "MS INSTALACAO COMERCIAL LTDA", cnpj: "18.635.262/0001-98", validade: "2030-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "ITALIA COMERCIO E SERVICOS LTDA", cnpj: "25.346.635/0001-76", validade: "2025-12-13", situacao: "Expirada", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "TERRA DO SOL AGRICOLA LTDA", cnpj: "10.895.511/0001-72", validade: "2025-12-18", situacao: "Expirada", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "ARAGUAIA COMMOTIDES AGRICOLAS LTDA", cnpj: "21.600.747/0001-50", validade: "2026-03-10", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "SOLO FERTIL AGRONEGOCIOS LTDA", cnpj: "43.422.838/0001-86", validade: "2026-03-10", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "BC ZANIN LTDA", cnpj: "31.628.252/0001-93", validade: "2026-08-31", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "ZANIN & CIA LTDA", cnpj: "43.640.705/0001-86", validade: "2026-08-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "CASA DE CARNES VITOR LTDA", cnpj: "25.952.953/0001-80", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "CONTABILIDADE ATUALIZADA LTDA", cnpj: "00.818.102/0001-19", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "DISTRIBUIDORA DE CARNES VICTOR GALVAO LTDA", cnpj: "02.598.111/0001-77", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "ECD COMERCIO E REPRESENTACAO COMERCIAL", cnpj: "08.018.510/0001-06", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "EVACLAR ALIMENTOS SOCIEDADE UNIPESSOAL LTDA", cnpj: "29.709.073/0001-39", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FABRICIO ROCHA XAVIER", cnpj: "703.411.016-64", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FLAVIANE EMPREENDIMENTOS IMOBILIARIOS LTDA", cnpj: "10.811.400/0001-30", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FRIGONATI LTDA", cnpj: "49.595.686/0001-08", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FRIGOVITOR LTDA", cnpj: "01.351.052/0001-75", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FRX EMPREENDIMENTOS E PARTICIPACOES LTDA", cnpj: "51.357.667/0001-87", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "LEGITIMO CASA DE CARNES LTDA", cnpj: "39.410.613/0001-32", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "MULTIGRAOS IND. E COM. DE CEREAIS LTDA", cnpj: "04.413.536/0001-90", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "ROCHA XAVIER ALIMENTOS LTDA", cnpj: "40.679.254/0001-00", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "SARAH ALIMENTOS LTDA", cnpj: "34.505.700/0001-50", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "XAVIER CARNES SOCIEDADE UNIPESSOAL LTDA", cnpj: "01.536.881/0001-22", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "DISTRIBUIDORA DE CARNES SAO CAETANO LTDA", cnpj: "04.477.421/0001-69", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "GR AGRICOLA LTDA", cnpj: "24.916.571/0001-39", validade: "2027-01-06", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "GP AGRICOLA LTDA", cnpj: "14.301.194/0001-70", validade: "2027-01-07", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "XAVIER NEGOCIOS E EMPREENDIMENTOS LTDA", cnpj: "50.219.118/0001-83", validade: "2027-01-28", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FRIGORIFICO DO VALE LTDA", cnpj: "35.638.833/0001-67", validade: "2027-02-01", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "UNIGRAOS AGROINDUSTRIAL LTDA", cnpj: "13.480.974/0001-61", validade: "2027-02-12", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "UNIGRAOS TRANSPORTES LTDA", cnpj: "17.706.285/0001-83", validade: "2027-02-12", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "FRIGORIFICO MILLENIUM INDUSTRIA E COMERCIO LTDA", cnpj: "03.910.351/0001-28", validade: "2028-01-28", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "COMERCIO DE ALIMENTOS MELO LTDA", cnpj: "20.329.724/0001-90", validade: "2030-11-11", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "S J CAFE LTDA", cnpj: "37.697.736/0001-70", validade: "2030-12-22", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "CONEXCOFFEE LTDA", cnpj: "60.246.938/0001-18", validade: "2031-01-22", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "GRAO FORTE COMERCIO DE CAFE LTDA", cnpj: "30.649.185/0001-20", validade: "2031-02-06", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "GRAO NOBRE LTDA", cnpj: "32.475.121/0001-86", validade: "2031-03-03", situacao: "Vigente", parceiro: "-" },
-    { certificado: "PARTIDAS", empresa: "PERIGOLO PRATA TRADING COFFEE - LTDA", cnpj: "14.990.842/0001-42", validade: "2031-03-03", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "IMPPAR PNEUS S/A", cnpj: "09.398.976/0001-39", validade: "2025-05-26", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "C. L. ANGELO ALIMENTOS", cnpj: "27.219.782/0001-00", validade: "2025-07-25", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "AGROPECUARIA CHEIRO DA TERRA LTDA", cnpj: "02.107.235/0001-02", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CEREAIS 4J LTDA", cnpj: "53.072.222/0001-86", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "IRMAOS PRADO LTDA", cnpj: "06.939.907/0001-05", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "LABORATORIO ANALYSIS M M LTDA", cnpj: "02.521.694/0001-38", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "LABORATORIO CIAPA - CENTRO INTEGRADO DE ANALISES", cnpj: "01.181.044/0001-28", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "LIDI - LABORATORIO DE INVESTIGACOES E DIAGNOSTICOS", cnpj: "33.411.583/0001-00", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MINAS FORTE INDUSTRIA E COMERCIO", cnpj: "41.776.201/0001-62", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "TORREFACAO E MOAGEM DE CAFE ZE NUNES LTDA", cnpj: "20.371.878/0001-40", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "VIACAO NACIONAL DE TRANSPORTES LTDA", cnpj: "01.889.358/0001-80", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MERCADOMOVEIS LTDA", cnpj: "77.500.049/0001-38", validade: "2025-12-25", situacao: "Expirada", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "MARLON BONILHA LTDA", cnpj: "04.200.198/0001-08", validade: "2025-12-31", situacao: "Expirada", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "RCDECKER INSTALACAO DE MAQUINAS E EQUIPAMENTOS LTDA", cnpj: "31.721.507/0001-68", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SUPERMERCADO IRMAOS LOURENCO M K M LTDA", cnpj: "04.715.840/0001-91", validade: "2026-01-08", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "PAMAQ PECAS E SERVICOS LTDA", cnpj: "32.001.902/0001-39", validade: "2026-01-27", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MAXIMA INDUSTRIA DE MOVEIS LTDA", cnpj: "85.110.989/0001-49", validade: "2026-02-08", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MARITUCS ALIMENTOS LIMITADA", cnpj: "49.882.913/0001-78", validade: "2026-02-23", situacao: "Expirada", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MAXIMA INDUSTRIA DE MOVEIS LTDA", cnpj: "85.110.989/0001-49", validade: "2026-03-08", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "COMERCIAL DE ALIMENTOS HACK LTDA", cnpj: "97.553.185/0001-01", validade: "2026-05-04", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "ALB INCORPORADORA E ADMINISTRADORA DE BENS", cnpj: "21.169.348/0001-87", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO CAETE II LTDA", cnpj: "12.167.054/0001-25", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO CONEXAO LTDA", cnpj: "17.495.220/0001-36", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO HULK LTDA", cnpj: "34.748.223/0001-53", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO PARANAZAO LTDA", cnpj: "02.537.129/0001-69", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO PRO TORK IMBAU LTDA", cnpj: "45.490.524/0001-46", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO PRO TORK PIRAI DO SUL COMERCIO", cnpj: "39.943.341/0001-36", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO PRO TORK RIO PRETO LTDA", cnpj: "40.806.619/0001-02", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO QUATIGUA COMERCIO DE COMBUSTIVEIS", cnpj: "37.738.023/0001-08", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "AUTO POSTO ROTA SUL LTDA.", cnpj: "02.387.621/0001-03", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "BALSA NOVA COMERCIO DE COMBUSTIVEIS LTDA", cnpj: "11.769.886/0001-59", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "BONILHA & BONILHA COMERCIO DE COMBUSTIVEIS LTDA", cnpj: "35.327.829/0001-88", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "BONILHA COMERCIO DE COMBUSTIVEIS LTDA", cnpj: "35.064.446/0001-64", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "C. L. ANGELO ALIMENTOS", cnpj: "27.219.782/0001-00", validade: "2026-06-30", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CANA VERDE COMERCIO DE COMBUSTIVEIS LTDA", cnpj: "17.491.025/0001-38", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "CH MOBIL SERVICOS DE MONTAGENS E TRASPORTES LTDA", cnpj: "31.459.885/0001-15", validade: "2026-06-30", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "COMERCIAL DE COMBUSTIVEIS GRAZUL LTDA", cnpj: "00.558.799/0001-36", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "MARLON BONILHA LTDA", cnpj: "04.200.198/0001-08", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "POSTO PROTORK MIRITITUBA LTDA", cnpj: "03.582.708/0001-96", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "RODOLUZ COMERCIO DE COMBUSTIVEIS", cnpj: "12.132.199/0001-90", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "SANTA RITA COMERCIO DE COMBUSTIVEL", cnpj: "20.635.802/0001-85", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "SPREA COMERCIO DE COMBUSTIVEIS LTDA", cnpj: "75.988.246/0001-12", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "SUPER POSTO PRO TORK COMERCIO DE COMBUSTIVEIS", cnpj: "35.345.845/0001-01", validade: "2026-06-30", situacao: "Vigente", parceiro: "DR. CESAR" },
-    { certificado: "ICONTAZ", empresa: "SCHENCKEL & SCHENCKEL LTDA", cnpj: "78.693.421/0001-32", validade: "2026-07-25", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "H.R.LOCADORA DE MAQUINAS LTDA", cnpj: "02.819.975/0001-71", validade: "2026-08-28", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "TERRA TERRAPLENAGEM E PAVIMENTACAO INDUSTRIA", cnpj: "80.229.610/0001-09", validade: "2026-08-28", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "DALFERTIL COMERCIO E REPRESENTACOES", cnpj: "76.530.666/0001-13", validade: "2026-09-05", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "APPELDORN DISTRIBUIDORA DE ALIMENTOS LTDA", cnpj: "01.583.294/0001-94", validade: "2026-11-06", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "59.859.832 EDIMEDES ANACLETO DE MOURA", cnpj: "59.859.832/0001-00", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "ATACADAO DESTAK LTDA", cnpj: "17.906.802/0001-68", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "B W D E CIA LTDA", cnpj: "52.934.336/0001-25", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "BARBARA NOVAES RODRIGUES", cnpj: "36.734.616/0001-33", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "BRASLATTE LACTEOS LTDA EM RECUPERACAO JUDICIAL", cnpj: "20.062.577/0002-16", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "BRASLATTE LACTEOS LTDA EM RECUPERACAO JUDICIAL", cnpj: "20.062.577/0001-35", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "BRUNO SANTANA BARBOSA", cnpj: "10.931.063/0001-15", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CACELANI & CACELANI LTDA", cnpj: "78.544.152/0001-42", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CASA DE CARNES BURITI LTDA", cnpj: "65.534.562/0001-60", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CASA DE CARNES BURITI LTDA", cnpj: "65.534.562/0002-41", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CRESCENZA PARTICIPACOES S/A EM RECUPERACAO", cnpj: "14.162.131/0001-80", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "DIGIOR COMERCIO DE ALIMENTOS LTDA", cnpj: "21.034.941/0001-16", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "DIGIOR COMERCIO DE ALIMENTOS LTDA", cnpj: "21.034.941/0002-05", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "DOPPIO TRANSPORTES S.A. EM RECUPERACAO JUDICIAL", cnpj: "14.743.756/0001-35", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "FABIAN & CIA LTDA", cnpj: "12.464.568/0001-42", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "FABIAN BUFE PARA EVENTOS LTDA", cnpj: "77.614.501/0001-92", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "FRATELLI INCORPORADORA DE IMOVEIS S/A", cnpj: "10.545.897/0001-92", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "KLEIN & CIA LTDA", cnpj: "17.530.579/0001-05", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "LC MOVEL SERVICOS DE DESIGN E MONTAGEM", cnpj: "34.668.631/0001-03", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "M S MARIUSSI LTDA.", cnpj: "68.826.536/0001-02", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "M. M. LOURENCO EMPREENDIMENTOS LTDA.", cnpj: "57.453.877/0001-55", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "M.N. WEBER & CIA LTDA", cnpj: "08.225.417/0001-64", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MENEZES E MATOS COMERCIAL DE ALIMENTOS LTDA", cnpj: "16.936.011/0001-18", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MERCADO GIORGI RIBEIRO PARANAPANEMA", cnpj: "13.413.672/0001-70", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MERCADOMOVEIS LTDA", cnpj: "77.500.049/0001-38", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MOUROS PARTICIPACOES S.A. EM RECUPERACAO", cnpj: "09.546.345/0001-10", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "P E MINIMERCADO LTDA", cnpj: "50.527.870/0001-91", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "PERETTI & MANTOVANI LTDA", cnpj: "04.898.261/0001-21", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "ROSO & FILHOS LTDA EM RECUPERACAO JUDICIAL", cnpj: "75.982.553/0001-96", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SEBASTIAO CORREIA RODRIGUES LTDA", cnpj: "03.803.162/0001-56", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SERGIO CARLOS SILVA DOS ANJOS LTDA", cnpj: "12.163.380/0001-64", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SINDIA LUCIANE TAVARES LTDA", cnpj: "14.041.945/0001-66", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SUPERMERCADO AMIGAO COMERCIO DE ALIMENTOS LTDA", cnpj: "51.013.083/0001-94", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SUPERMERCADO BRAVIM LTDA", cnpj: "35.999.150/0001-35", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SUPERMERCADO BRAZ LTDA", cnpj: "05.311.496/0001-38", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SUPERMERCADO LINK LTDA", cnpj: "01.946.439/0001-74", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "SUPERMERCADOS SAO FRANCISCO LTDA", cnpj: "38.445.728/0001-08", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "TKP INDUSTRIA, COMERCIO E RENOVADORA", cnpj: "02.677.230/0001-15", validade: "2026-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "CASSIO AGUIMAR DE PAULA", cnpj: "38.478.053/0001-95", validade: "2027-01-08", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "EDEGAR TRES LTDA EM RECUPERACAO JUDICIAL", cnpj: "81.425.548/0001-85", validade: "2027-01-08", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "EUTANIA MARIA NUNES DE PAULA", cnpj: "13.885.550/0001-87", validade: "2027-01-08", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "FRIGORIFICO SANTA BARBARA LTDA", cnpj: "06.175.831/0001-80", validade: "2027-01-08", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "KRAEMER & KRAEMER LTDA", cnpj: "75.133.611/0001-07", validade: "2027-01-08", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "FABIO HENRIQUE DE OLIVEIRA LTDA", cnpj: "08.054.992/0001-41", validade: "2027-02-26", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "AXIS ROBOTICS MANUTENCAO DE MAQUINAS LTDA", cnpj: "33.297.394/0001-40", validade: "2027-08-18", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "L & F COMERCIO E INDUSTRIA DE MOVEIS LTDA", cnpj: "78.555.703/0001-73", validade: "2027-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "L.A.DALL ACQUA & CIA LTDA", cnpj: "82.311.580/0001-00", validade: "2027-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "59.862.718 DALIANI ROSO DE MOURA", cnpj: "59.862.718/0001-30", validade: "2029-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "BIFAO COMERCIO DE CARNES LTDA", cnpj: "23.876.349/0001-97", validade: "2029-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "MADEMETAL INDUSTRIA DE DISPLAYS PROMOCIONAIS", cnpj: "66.529.843/0001-98", validade: "2029-12-31", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "FAMILIA LUZ COMERCIO DE CARNES LTDA", cnpj: "18.701.719/0001-15", validade: "2030-01-22", situacao: "Vigente", parceiro: "-" },
-    { certificado: "ICONTAZ", empresa: "COOPERATIVA PARANAENSE DE MEDICINA", cnpj: "02.868.390/0001-41", validade: "2030-07-07", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "LIDERANCA COMERCIO DE TINTAS LTDA", cnpj: "82.174.186/0001-60", validade: "2024-08-20", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2025-07-27", situacao: "Expirada", parceiro: "LUCIANO" },
-    { certificado: "G5", empresa: "E.L. MANTO REPRESENTACOES LTDA", cnpj: "29.077.434/0001-71", validade: "2025-08-11", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2025-08-25", situacao: "Expirada", parceiro: "LUCIANO" },
-    { certificado: "G5", empresa: "FRIGORIFICO BDS FOODS LTDA", cnpj: "37.962.897/0001-44", validade: "2025-09-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "FRIGORIFICO ROCCA LTDA", cnpj: "61.983.813/0001-33", validade: "2025-09-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2025-10-29", situacao: "Expirada", parceiro: "LUCIANO" },
-    { certificado: "G5", empresa: "NUTRILARA SUPLEMENTOS E RACAO ANIMAL LTDA", cnpj: "33.918.120/0001-21", validade: "2025-10-31", situacao: "Expirada", parceiro: "LUCIANO" },
-    { certificado: "G5", empresa: "NG TRADE LTDA", cnpj: "11.456.303/0001-30", validade: "2025-11-30", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "GP AGRICOLA LTDA", cnpj: "14.301.194/0001-70", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "GR AGRICOLA LTDA", cnpj: "24.916.571/0001-39", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "ITAMARATY AGRONEGOCIOS LTDA", cnpj: "20.917.839/0001-04", validade: "2025-12-31", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "NUTRILARA SUPLEMENTOS E RACAO ANIMAL LTDA", cnpj: "33.918.120/0001-21", validade: "2026-01-31", situacao: "Expirada", parceiro: "LUCIANO" },
-    { certificado: "G5", empresa: "ARNOLD COMERCIO E REPRESENTACAO LTDA", cnpj: "09.382.853/0001-00", validade: "2026-02-18", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "GIOVANI ARNOLD ALMEIDA EM RECUPERACAO JUDICIAL", cnpj: "07.557.806/0001-24", validade: "2026-02-18", situacao: "Expirada", parceiro: "-" },
-    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2026-03-31", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "G5", empresa: "NOVA CIAFERTIL PRODUTOS AGRICOLAS LTDA", cnpj: "48.925.202/0001-70", validade: "2026-04-30", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "G5", empresa: "ARNOLD COMERCIO E REPRESENTACAO LTDA", cnpj: "09.382.853/0001-00", validade: "2026-05-26", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "GIOVANI ARNOLD ALMEIDA EM RECUPERACAO JUDICIAL", cnpj: "07.557.806/0001-24", validade: "2026-05-26", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "NUTRILARA SUPLEMENTOS E RACAO ANIMAL LTDA", cnpj: "33.918.120/0001-21", validade: "2026-12-31", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "G5", empresa: "ITAMARATY AGRONEGOCIOS LTDA", cnpj: "20.917.839/0001-04", validade: "2027-03-10", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "NOVA CIAFERTIL PRODUTOS AGRICOLAS LTDA", cnpj: "48.925.202/0001-70", validade: "2027-04-30", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "GABRIELA AU******", cnpj: "882.654.390-91", validade: "2027-06-30", situacao: "Cancelada", parceiro: "-" },
-    { certificado: "G5", empresa: "NUTRILARA SUPLEMENTOS E RACAO ANIMAL LTDA", cnpj: "33.918.120/0001-21", validade: "2027-06-30", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "GM ASSESSORIA EXECUTIVA LTDA", cnpj: "57.073.026/0001-87", validade: "2030-02-25", situacao: "Vigente", parceiro: "-" },
-    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2030-10-31", situacao: "Vigente", parceiro: "-" }
-];
+   // LISTA DE DADOS COMPLETA
+        let dados = [
+           { certificado: "G5", empresa: "ABATEDOURO E FRIGORIFICO FRIBOTH LTDA", cnpj: "11.882.056/0001-33", validade: "2026-06-06", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "AGRO OIL LTDA", cnpj: "23.446.675/0001-64", validade: "2026-06-30", situacao: "Auto", parceiro: "-" },
+    { certificado: "RECUPERA", empresa: "AGROCEREAIS VAN RIEL LTDA", cnpj: "27.253.720/0001-15", validade: "2031-03-18", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "G5", empresa: "AGROPECUARIA BOLSON LTDA EM RECUPERACAO JUDICIAL", cnpj: "03.125.991/0001-27", validade: "2026-05-12", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "ALB INCORPORADORA E ADMINISTRADORA DE BENS PROPRIOS LTDA", cnpj: "21.169.348/0001-87", validade: "2026-06-30", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "ALBAR FERTILIZANTES LTDA", cnpj: "42.794.232/0001-09", validade: "2026-05-13", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "ARAGUAIA COMMOTIDES AGRICOLAS LTDA", cnpj: "21.600.747/0001-50", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "ALENCAR", empresa: "ARFOO SOLUCOES INDUSTRIAIS LTDA", cnpj: "26.248.352/0001-54", validade: "2026-04-30", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "G5", empresa: "ARNOLD COMERCIO E REPRESENTACAO LTDA EM RECUPERACAO JUDICIAL", cnpj: "09.382.853/0001-00", validade: "2026-05-26", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "B W D E CIA LTDA", cnpj: "52.934.336/0001-25", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "BC ZANIN LTDA", cnpj: "31.628.252/0001-93", validade: "2026-08-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "RECUPERA", empresa: "BRISA TRANSPORTES LTDA", cnpj: "94.107.919/0001-22", validade: "2026-11-14", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "ICONTAZ", empresa: "C. L. ANGELO ALIMENTOS", cnpj: "27.219.782/0001-00", validade: "2026-06-30", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "CASA DE CARNES VITOR LTDA", cnpj: "25.952.953/0001-80", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "ICONTAZ", empresa: "COMERCIAL DE ALIMENTOS HACK LTDA", cnpj: "97.553.185/0001-01", validade: "2026-05-04", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "COMERCIO DE ALIMENTOS MELO LTDA", cnpj: "20.329.724/0001-90", validade: "2030-11-11", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "CONEXCOFFEE LTDA", cnpj: "60.246.938/0001-18", validade: "2031-01-22", situacao: "Auto", parceiro: "MARCELO" },
+    { certificado: "PARTIDAS", empresa: "CONTABILIDADE ATUALIZADA LTDA", cnpj: "00.818.102/0001-19", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ALLTUS ADM", empresa: "CRISTALINA UNIAO BIOMASSA SPE LTDA", cnpj: "50.561.771/0001-26", validade: "2026-10-14", situacao: "Auto", parceiro: "EDGAR" },
+    { certificado: "ICONTAZ", empresa: "DALFERTIL COMERCIO E REPRESENTACOES DE INS AGRIC LTDA", cnpj: "76.530.666/0001-13", validade: "2026-09-05", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "DELCAM ALIMENTOS LTDA.", cnpj: "17.266.951/0001-00", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "DISTRIBUIDORA DE CARNES SAO CAETANO LTDA", cnpj: "04.477.421/0001-69", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "DISTRIBUIDORA DE CARNES VICTOR GALVAO LTDA", cnpj: "02.598.111/0001-77", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "ECD COMERCIO E REPRESENTACAO COMERCIAL", cnpj: "08.018.510/0001-06", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "EDEGAR TRES LTDA EM RECUPERACAO JUDICIAL", cnpj: "81.425.548/0001-85", validade: "2027-01-08", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ALLTUS ADM", empresa: "ENERGIA CRISTALINA FLORESTAL LTDA", cnpj: "28.116.544/0001-32", validade: "2026-10-14", situacao: "Auto", parceiro: "EDGAR" },
+    { certificado: "PARTIDAS", empresa: "EVACLAR ALIMENTOS SOCIEDADE UNIPESSOAL LTDA", cnpj: "29.709.073/0001-39", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "FABRICIO ROCHA XAVIER", cnpj: "703.411.016-64", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "RECUPERA", empresa: "FALABRETTE SUPERMERCADOS LTDA", cnpj: "91.232.843/0001-79", validade: "2029-11-13", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "ICONTAZ", empresa: "FAMILIA LUZ COMERCIO DE CARNES LTDA", cnpj: "18.701.719/0001-15", validade: "2030-01-22", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "FLAVIANE EMPREENDIMENTOS IMOBILIARIOS LTDA", cnpj: "10.811.400/0001-30", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "FRATELLI INCORPORADORA DE IMOVEIS S/A EM RECUPERACAO JUDICIAL", cnpj: "10.545.897/0001-92", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "FRIGONATI LTDA", cnpj: "49.595.686/0001-08", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "FRIGORIFICO DO VALE LTDA", cnpj: "35.638.833/0001-67", validade: "2027-02-01", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "FRIGORIFICO MILLENIUM INDUSTRIA E COMERCIO LTDA", cnpj: "03.910.351/0001-28", validade: "2028-01-28", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "FRIGORIFICO SANTA BARBARA LTDA EM RECUPERACAO JUDICIAL", cnpj: "06.175.831/0001-80", validade: "2027-01-08", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "FRIGOVITOR LTDA", cnpj: "01.351.052/0001-75", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "FRX EMPREENDIMENTOS E PARTICIPACOES LTDA", cnpj: "51.357.667/0001-87", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ALENCAR", empresa: "GAMA ALIMENTOS LTDA", cnpj: "27.776.993/0001-44", validade: "2026-03-31", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "G5", empresa: "GIOVANI ARNOLD ALMEIDA EM RECUPERACAO JUDICIAL", cnpj: "07.557.806/0001-24", validade: "2026-05-26", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "G5", empresa: "GM ASSESSORIA EXECUTIVA LTDA", cnpj: "57.073.026/0001-87", validade: "2030-02-25", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "GP AGRICOLA LTDA", cnpj: "14.301.194/0001-70", validade: "2027-01-07", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "GR AGRICOLA LTDA", cnpj: "24.916.571/0001-39", validade: "2027-01-06", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "GRAO FORTE COMERCIO DE CAFE LTDA", cnpj: "30.649.185/0001-20", validade: "2031-02-06", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "GRAO NOBRE LTDA", cnpj: "32.475.121/0001-86", validade: "2031-03-03", situacao: "Auto", parceiro: "MARCELO BARCELOS" },
+    { certificado: "ALENCAR", empresa: "H. CALIL COMERCIAL LTDA", cnpj: "20.428.743/0001-74", validade: "2026-06-19", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "ALLTUS ADM", empresa: "HBJ BIOMASSA LTDA", cnpj: "23.361.490/0001-57", validade: "2027-10-10", situacao: "Auto", parceiro: "EDGAR" },
+    { certificado: "ALENCAR", empresa: "IDEIA LOG - TRANSPORTE RODOVIARIO DE CARGAS EM GERAL LTDA.", cnpj: "21.674.595/0001-30", validade: "2027-01-31", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "SOCIEDADE", empresa: "INDUSTRIA DE LATICINIO E DERIVADOS LACTEOS DO AGRESTE MERIDIONAL LTDA", cnpj: "42.059.615/0001-33", validade: "2026-12-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "SOCIEDADE", empresa: "INOVACOES TECNOLOGICAS LTDA", cnpj: "38.320.944/0001-19", validade: "2027-03-19", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "G5", empresa: "ITAMARATY AGRONEGOCIOS LTDA", cnpj: "20.917.839/0001-04", validade: "2027-03-10", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "SOCIEDADE", empresa: "JPAGRO COMERCIO DE CEREAIS LTDA", cnpj: "18.780.378/0001-10", validade: "2026-07-29", situacao: "Auto", parceiro: "-" },
+    { certificado: "ICONTAZ", empresa: "KLEIN & CIA LTDA", cnpj: "17.530.579/0001-05", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "KRAEMER & KRAEMER LTDA", cnpj: "75.133.611/0001-07", validade: "2027-01-08", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "L & F COMERCIO E INDUSTRIA DE MOVEIS LTDA", cnpj: "78.555.703/0001-73", validade: "2027-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "L.A.DALL ACQUA & CIA LTDA", cnpj: "82.311.580/0001-00", validade: "2027-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "LEGITIMO CASA DE CARNES LTDA", cnpj: "39.410.613/0001-32", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "ICONTAZ", empresa: "M S MARIUSSI LTDA.", cnpj: "68.826.536/0001-02", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "SOCIEDADE", empresa: "MARIO SERGIO ROSSI", cnpj: "070.996.648-24", validade: "2026-06-15", situacao: "Auto", parceiro: "-" },
+    { certificado: "ICONTAZ", empresa: "MARLON BONILHA LTDA", cnpj: "04.200.198/0001-08", validade: "2026-06-30", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "MERCADOMOVEIS LTDA", cnpj: "77.500.049/0001-38", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "MOLTEC MOLAS DE PRECISAO LTDA", cnpj: "77.627.610/0001-44", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ALENCAR", empresa: "MOTIVA CENTRAL DE ATENDIMENTO TELEFONICO & CONSULTORIA EM TELEVENDAS LTDA", cnpj: "07.759.538/0001-23", validade: "2027-02-09", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "SOCIEDADE", empresa: "MULT BEEF COMERCIAL LTDA", cnpj: "02.886.959/0001-00", validade: "2026-12-31", situacao: "Auto", parceiro: "MARCELO" },
+    { certificado: "G5", empresa: "NOVA CIAFERTIL PRODUTOS AGRICOLAS LTDA", cnpj: "48.925.202/0001-70", validade: "2027-04-30", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "G5", empresa: "NUTRILARA SUPLEMENTOS E RACAO ANIMAL LTDA", cnpj: "33.918.120/0001-21", validade: "2027-06-30", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "SOCIEDADE", empresa: "PALOMAR CARNES LTDA", cnpj: "35.425.378/0001-11", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO" },
+    { certificado: "SOCIEDADE", empresa: "PEGASO COMERCIO E SERVICOS LTDA", cnpj: "02.378.325/0001-38", validade: "2026-12-31", situacao: "Auto", parceiro: "ZANELATO" },
+    { certificado: "PARTIDAS", empresa: "PERIGOLO PRATA TRADING COFFEE - LTDA", cnpj: "14.990.842/0001-42", validade: "2031-03-03", situacao: "Auto", parceiro: "-" },
+    { certificado: "G5", empresa: "PLANTA VERDE COMERCIO, REPRESENTACAO & ALUGUEL DE MAQUINAS E EQUIPAMENTOS LTDA", cnpj: "16.754.944/0001-94", validade: "2026-05-12", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "SOCIEDADE", empresa: "PROCFIT CONTABILIDADE LTDA", cnpj: "22.090.466/0001-68", validade: "2027-02-18", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "SOCIEDADE", empresa: "PROCFIT GESTAO ORIENTADA A PROCESSOS LTDA", cnpj: "09.067.820/0001-75", validade: "2026-08-19", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "SOCIEDADE", empresa: "RIOLAX FRANCHISING LTDA", cnpj: "16.954.655/0001-39", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "PARTIDAS", empresa: "ROCHA XAVIER ALIMENTOS LTDA", cnpj: "40.679.254/0001-00", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "S J CAFE LTDA", cnpj: "37.697.736/0001-70", validade: "2030-12-22", situacao: "Auto", parceiro: "MARCELO" },
+    { certificado: "PARTIDAS", empresa: "SARAH ALIMENTOS LTDA", cnpj: "34.505.700/0001-50", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "G5", empresa: "SCAGRO INDUSTRIAL LTDA", cnpj: "32.934.172/0001-29", validade: "2030-10-31", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "SERGIO CARLOS SILVA DOS ANJOS LTDA", cnpj: "12.163.380/0001-64", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "RECUPERA", empresa: "SERRA AMBIENTAL LTDA", cnpj: "00.103.780/0001-03", validade: "2026-10-15", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "G5", empresa: "SMAGRO COMERCIO E REPRESENTACOES LTDA", cnpj: "45.028.831/0001-00", validade: "2026-05-12", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "PARTIDAS", empresa: "SOLO FERTIL AGRONEGOCIOS LTDA", cnpj: "43.422.838/0001-86", validade: "2026-12-31", situacao: "Auto", parceiro: "LUCIANO" },
+    { certificado: "ICONTAZ", empresa: "SUPERMERCADO BRAVIM LTDA", cnpj: "35.999.150/0001-35", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "SUPERMERCADO IRMAOS LOURENCO M K M LTDA", cnpj: "04.715.840/0001-91", validade: "2031-03-09", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "ICONTAZ", empresa: "SUPERMERCADO LINK LTDA", cnpj: "01.946.439/0001-74", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CESAR" },
+    { certificado: "PARTIDAS", empresa: "TELSITE TELECOMUNICACOES LTDA", cnpj: "07.016.672/0001-34", validade: "2027-03-31", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "PARTIDAS", empresa: "TERRA DO SOL AGRICOLA LTDA", cnpj: "10.895.511/0001-72", validade: "2026-05-26", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "UNIGRAOS AGROINDUSTRIAL LTDA", cnpj: "13.480.974/0001-61", validade: "2027-02-12", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "UNIGRAOS TRANSPORTES LTDA", cnpj: "17.706.285/0001-83", validade: "2027-02-12", situacao: "Auto", parceiro: "-" },
+    { certificado: "PARTIDAS", empresa: "VEX IMPORTACAO E DISTRIBUICAO LTDA", cnpj: "28.306.241/0001-82", validade: "2026-06-30", situacao: "Auto", parceiro: "-" },
+    { certificado: "SOCIEDADE", empresa: "VILA ROSA RISTORANTE E ROTISSERIE LTDA", cnpj: "49.400.362/0001-69", validade: "2026-08-31", situacao: "Auto", parceiro: "-" },
+    { certificado: "ALENCAR", empresa: "VR2 TRANSPORTES LTDA", cnpj: "26.146.593/0001-92", validade: "2026-12-31", situacao: "Auto", parceiro: "DR. CLAUDIO (LONDRINA)" },
+    { certificado: "SOCIEDADE", empresa: "WELLDONE ASSISTENCIA LABORATORIAL LTDA", cnpj: "12.184.559/0001-06", validade: "2026-09-23", situacao: "Auto", parceiro: "DR. PAULO BRUNETI" },
+    { certificado: "PARTIDAS", empresa: "XAVIER CARNES SOCIEDADE UNIPESSOAL LTDA", cnpj: "01.536.881/0001-22", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "SOCIEDADE", empresa: "XAVIER NEGOCIOS E EMPREENDIMENTOS LTDA", cnpj: "50.219.118/0001-83", validade: "2026-12-31", situacao: "Auto", parceiro: "PAULO" },
+    { certificado: "PARTIDAS", empresa: "XAVIER NEGOCIOS E EMPREENDIMENTOS LTDA", cnpj: "50.219.118/0001-83", validade: "2027-01-28", situacao: "Auto", parceiro: "PAULO MG" },
+    { certificado: "PARTIDAS", empresa: "ZANIN & CIA LTDA", cnpj: "43.640.705/0001-86", validade: "2026-08-31", situacao: "Auto", parceiro: "MARCELO" }
+        ];
     let editIdx = -1;
     let ordem = { col: null, dir: 'asc' };
     
