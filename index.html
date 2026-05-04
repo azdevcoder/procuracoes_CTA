@@ -46,6 +46,7 @@
         <div class="d-flex gap-2">
             <input type="file" id="fileInput" hidden onchange="processarExcel(this)">
             <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('fileInput').click()"> Importar Planilha</button>
+            <button class="btn btn-outline-success btn-sm" onclick="exportarExcel()">Exportar Excel</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Novo Registro</button>
         </div>
     </div>
@@ -421,6 +422,42 @@
             await salvarNoBanco();
             renderizar();
         }
+    }
+
+    function exportarExcel() {
+        if (dados.length === 0) {
+            alert("Não há dados para exportar.");
+            return;
+        }
+
+        // 1. Mapeia os dados internos para o formato exato que a planilha lê na importação
+        const dadosExportacao = dados.map(d => {
+            // Formata a data para DD/MM/YYYY para ficar legível no Excel
+            let dataFormatada = d.validade;
+            if (dataFormatada && dataFormatada.includes('-')) {
+                dataFormatada = dataFormatada.split('-').reverse().join('/');
+            }
+
+            return {
+                "CERTIFICADO": d.certificado,
+                "EMPRESA": d.empresa,
+                "CNPJ": d.cnpj,
+                "VALIDADE": dataFormatada,
+                "SITUAÇÃO": d.situacao,
+                "PARCEIRO": d.parceiro
+            };
+        });
+
+        // 2. Converte o JSON mapeado para uma aba de planilha
+        const worksheet = XLSX.utils.json_to_sheet(dadosExportacao);
+        
+        // 3. Cria um novo arquivo de Excel e adiciona a aba
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Procuracoes_Atuais");
+
+        // 4. Gera o nome do arquivo com a data de hoje e faz o download automático
+        const dataHoje = HOJE.toLocaleDateString('pt-BR').replace(/\//g, '-');
+        XLSX.writeFile(workbook, `Procuracoes_CTA_${dataHoje}.xlsx`);
     }
 </script>
 </body>
