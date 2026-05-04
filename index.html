@@ -255,7 +255,9 @@
                     <td><span class="badge-status status-${badgeClass}">${sit}</span></td>
                     <td>${d.parceiro}</td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-outline-primary" onclick="abrirModal(${i})">Editar</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="abrirModal(${i})" title="Editar">
+                        <i class="bi bi-pencil-square"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-danger ms-1" onclick="excluirRegistro(${i})" title="Excluir">
                         <i class="bi bi-trash3"></i>
                         </button>
